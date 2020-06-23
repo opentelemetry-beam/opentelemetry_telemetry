@@ -41,7 +41,7 @@ register_tracers(AllEvents) ->
 attach_handler(Prefix, Suffix, TracerId) ->
     Event = Prefix ++ [Suffix],
     SpanName = list_to_binary(lists:join("_",
-                                         [atom_to_binary(Segment, utf8) || Segment <- Event])),
+                                         [atom_to_binary(Segment, utf8) || Segment <- Prefix])),
     Tracer = opentelemetry:get_tracer(TracerId),
     Config = #{tracer => Tracer, type => Suffix, span_name => SpanName},
     Handler = fun ?MODULE:handle_event/4,
@@ -57,29 +57,38 @@ handle_event(_Event,
              _Metadata,
              #{type := start, tracer := Tracer, span_name := Name}) ->
     StartOpts = #{start_time => StartTime},
-    SpanCtx = ot_tracer:start_span(Tracer, Name, StartOpts),
-    %% erlang:display(SpanCtx);
+    _ = ot_tracer:start_span(Tracer, Name, StartOpts),
+    ok;
 handle_event(_Event,
              #{duration := Duration},
              _Metadata,
              #{type := stop, tracer := Tracer}) ->
     Ctx = ot_tracer:current_span_ctx(Tracer),
-    %% erlang:display(Tracer),
-    %% erlang:display(Ctx),
-    SetAttrResult = ot_span:set_attribute(Tracer, Ctx, <<"duration">>, Duration),
-    %% erlang:display(SetAttrResult),
-    Result = ot_tracer:end_span(Tracer, Ctx),
-    %% erlang:display(Result);
+    _ = ot_span:set_attribute(Tracer, Ctx, <<"duration">>, Duration),
+    _ = ot_tracer:end_span(Tracer, Ctx),
+    ok;
 handle_event(_Event,
              #{duration := Duration},
-             Metadata,
+             #{kind := Kind, reason := Reason, stacktrace := Stacktrace},
              #{type := exception, tracer := Tracer}) ->
     Ctx = ot_tracer:current_span_ctx(Tracer),
-    Status = opentelemetry:status(?OTEL_STATUS_INTERNAL, maps:get(reason, Metadata, "")),
+    Status = opentelemetry:status(?OTEL_STATUS_INTERNAL, atom_to_binary(Reason, utf8)),
+    FormattedReason = format_reason(Reason),
+    FormattedStacktrace = lists:flatten(io_lib:format("~p", [Stacktrace])),
     ot_span:set_status(Tracer, Ctx, Status),
     ot_span:set_attributes(Tracer,
                            Ctx,
-                           [{<<"stacktrace">>, maps:get(stacktracer, Metadata, "")},
+                           [{<<"stacktrace">>, FormattedStacktrace},
+                            {<<"kind">>, atom_to_binary(Kind, utf8)},
+                            {<<"reason">>, FormattedReason},
                             {<<"duration">>, Duration}]),
-    ot_tracer:end_span(Tracer).
+    _ = ot_tracer:end_span(Tracer),
+    ok;
+handle_event(_Event, _Measurements, _Metadata, _Config) ->
+    ok.
+
+format_reason({Reason, _}) ->
+    atom_to_binary(Reason, utf8);
+format_reason(Reason) ->
+    atom_to_binary(Reason, utf8).
 

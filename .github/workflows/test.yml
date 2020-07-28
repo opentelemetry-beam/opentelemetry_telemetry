@@ -1,0 +1,31 @@
+name: Common Test
+
+on:
+  pull_request:
+    branches:
+      - 'main'
+  push:
+    branches:
+      - 'main'
+
+jobs:
+  build:
+    name: Test on OTP ${{ matrix.otp_version }}
+    runs-on: ubuntu-latest
+
+    strategy:
+      matrix:
+        otp_version: [22.3.2]
+
+    steps:
+    - uses: actions/checkout@v2
+
+    - uses: gleam-lang/setup-erlang@v1.0.0
+      with:
+        otp-version: ${{ matrix.otp_version }}
+    - name: Compile
+      run: rebar3 compile
+    - name: CT tests
+      run: rebar3 ct
+    - name: Dialyzer
+      run: rebar3 dialyzer

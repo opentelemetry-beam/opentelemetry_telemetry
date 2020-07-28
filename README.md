@@ -1,5 +1,7 @@
 # OpentelemetryTelemetry
 
+A bridge library between telemetry events and OpenTelemetry Erlang. 
+
 **TODO: Add description**
 
 ## Installation

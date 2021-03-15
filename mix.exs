@@ -7,7 +7,7 @@ defmodule OpentelemetryTelemetry.MixProject do
 
     [
       app: app,
-      version: version(Keyword.fetch!(desc, :vsn)) |> IO.inspect(),
+      version: version(Keyword.fetch!(desc, :vsn)),
       description: to_string(Keyword.fetch!(desc, :description)),
       elixir: "~> 1.8",
       start_permanent: Mix.env() == :prod,

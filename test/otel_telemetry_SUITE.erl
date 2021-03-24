@@ -9,8 +9,7 @@
 -include_lib("opentelemetry_api/include/otel_tracer.hrl").
 
 all() -> [
-          successful_span,
-          exception_span
+          telemetry_span_handling
          ].
 
 init_per_suite(Config) ->
@@ -42,44 +41,45 @@ end_per_testcase(_, Config) ->
     application:stop(opentelemetry),
     Config.
 
-successful_span(_Config) ->
+telemetry_span_handling(_Config) ->
     SpanCtx1 = ?start_span(<<"span-1">>),
     ?set_current_span(SpanCtx1),
     _Result = test_app:handler(ok),
-    ?assertMatch(SpanCtx1, ?current_span_ctx),
-    ?end_span(),
-    receive
-        {span, #span{name=Name1,attributes=Attributes}} ->
-            ?assertEqual(<<"test_app_handler">>, Name1),
-            Attr = maps:from_list(Attributes),
-            ?assert(maps:is_key(<<"duration">>, Attr))
-        after
-            5000 ->
-                error(timeout)
-        end,
-
-    receive
-        {span, #span{name=Name2}} ->
-            ?assertEqual(<<"span-1">>, Name2)
-    after
-        5000 ->
-            error(timeout)
-    end,
-    ok.
-
-exception_span(_Config) ->
     try test_app:handler(raise_exception) of
         _ -> ok
     catch
         error:badarg -> ok
     end,
+    ?assertMatch(SpanCtx1, ?current_span_ctx),
+    ?set_attribute(<<"duration">>, 1),
+    ?end_span(),
+    {_, Span3Parent} = successful_span_listener(<<"test_app_nested_span">>),
+    {Span2, Span2Parent} = successful_span_listener(<<"test_app_handler">>),
+    {_, ExceptionSpanParent} = exception_span_listener(<<"test_app_handler">>),
+    {Span1, undefined} = successful_span_listener(<<"span-1">>),
+    ?assertEqual(Span2Parent, Span1),
+    ?assertEqual(ExceptionSpanParent, Span1),
+    ?assertEqual(Span3Parent, Span2),
+    ok.
+
+successful_span_listener(Name) ->
     receive
-        {span, #span{name=Name,events=Events,status=Status}} ->
-            ?assertEqual(<<"test_app_handler">>, Name),
-            ?assertEqual({status,error,<<"badarg">>}, Status),
-            ?assertEqual(1, erlang:length(Events))
+        {span, #span{name=Name,attributes=Attributes,parent_span_id=ParentId,span_id=Id}} ->
+            Attr = maps:from_list(Attributes),
+            ?assert(maps:is_key(<<"duration">>, Attr)),
+            {Id, ParentId}
     after
         5000 ->
             error(timeout)
-    end,
-    ok.
+    end.
+
+exception_span_listener(Name) ->
+    receive
+        {span, #span{name=Name,events=Events,status=Status,parent_span_id=ParentId,span_id=Id}} ->
+            ?assertEqual({status,error,<<"badarg">>}, Status),
+            ?assertEqual(1, erlang:length(Events)),
+            {Id, ParentId}
+    after
+        5000 ->
+            error(timeout)
+    end.

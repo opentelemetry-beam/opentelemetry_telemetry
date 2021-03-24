@@ -97,26 +97,30 @@ handle_event(_Event,
              #{type := start, tracer_id := TracerId, span_name := Name}) ->
     StartOpts = #{start_time => StartTime},
     Tracer = opentelemetry:get_tracer(TracerId),
+    CurrentCtx = otel_tracer:current_span_ctx(),
+    _ = store_ctx(CurrentCtx, TracerId, Metadata),
     Ctx = otel_tracer:start_span(Tracer, Name, StartOpts),
-    _ = store_ctx(Ctx, TracerId, Metadata),
+    otel_tracer:set_current_span(Ctx),
     ok;
 handle_event(_Event,
              #{duration := Duration},
              Metadata,
              #{type := stop, tracer_id := TracerId}) ->
+    otel_tracer:set_attribute(<<"duration">>, Duration),
+    _ = otel_tracer:end_span(),
     Ctx = pop_ctx(TracerId, Metadata),
-    otel_span:set_attribute(Ctx, <<"duration">>, Duration),
-    _ = otel_span:end_span(Ctx),
+    otel_tracer:set_current_span(Ctx),
     ok;
 handle_event(_Event,
              #{duration := Duration},
              #{kind := Kind, reason := Reason, stacktrace := Stacktrace} = Metadata,
              #{type := exception, tracer_id := TracerId}) ->
-    Ctx = pop_ctx(TracerId, Metadata),
     Status = opentelemetry:status(?OTEL_STATUS_ERROR, atom_to_binary(Reason, utf8)),
-    _ = otel_span:record_exception(Ctx, Kind, Reason, Stacktrace, [{<<"duration">>, Duration}]),
-    otel_span:set_status(Ctx, Status),
-    _ = otel_span:end_span(Ctx),
+    _ = otel_span:record_exception(otel_tracer:current_span_ctx(), Kind, Reason, Stacktrace, [{<<"duration">>, Duration}]),
+    otel_tracer:set_status(Status),
+    _ = otel_tracer:end_span(),
+    Ctx = pop_ctx(TracerId, Metadata),
+    otel_tracer:set_current_span(Ctx),
     ok;
 handle_event(_Event, _Measurements, _Metadata, _Config) ->
     ok.

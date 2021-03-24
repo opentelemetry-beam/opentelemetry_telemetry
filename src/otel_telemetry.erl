@@ -2,7 +2,15 @@
 
 -include_lib("opentelemetry_api/include/opentelemetry.hrl").
 
--export([init/1, init/2, handle_event/4, trace_application/1, trace_application/2]).
+-export([
+         init/1,
+         init/2,
+         handle_event/4,
+         pop_ctx/2,
+         store_ctx/3,
+         store_current_ctx/2,
+         trace_application/1,
+         trace_application/2]).
 
 init(Application) ->
     init(Application, []).
@@ -20,6 +28,10 @@ trace_application(Application, _Opts) ->
     _ = register_tracers(AllEvents),
     _ = register_event_handlers(SpannableEvents, AllEvents),
     ok.
+
+store_current_ctx(TracerId, EventMetadata) ->
+    CurrentCtx = otel_tracer:current_span_ctx(),
+    store_ctx(CurrentCtx, TracerId, EventMetadata).
 
 store_ctx(SpanCtx, TracerId, EventMetadata) ->
     case maps:get(telemetry_span_context, EventMetadata, undefined) of
@@ -97,8 +109,7 @@ handle_event(_Event,
              #{type := start, tracer_id := TracerId, span_name := Name}) ->
     StartOpts = #{start_time => StartTime},
     Tracer = opentelemetry:get_tracer(TracerId),
-    CurrentCtx = otel_tracer:current_span_ctx(),
-    _ = store_ctx(CurrentCtx, TracerId, Metadata),
+    _ = store_current_ctx(TracerId, Metadata),
     Ctx = otel_tracer:start_span(Tracer, Name, StartOpts),
     otel_tracer:set_current_span(Ctx),
     ok;

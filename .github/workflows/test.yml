@@ -27,5 +27,35 @@ jobs:
       run: rebar3 compile
     - name: CT tests
       run: rebar3 ct
-    - name: Dialyzer
-      run: rebar3 dialyzer
+      
+  elixir:
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        otp: ['23.2']
+        elixir: ['1.11.3']
+        os: [ubuntu-20.04]
+    steps:
+      - uses: actions/checkout@v2
+      - uses: erlef/setup-elixir@v1
+        with:
+          otp-version: ${{matrix.otp}}
+          elixir-version: ${{matrix.elixir}}
+
+      - name: Deps cache
+        uses: actions/cache@v2
+        id: deps-cache
+        with:
+          path: |
+            deps
+            _build
+          key: ${{ matrix.os }}-lint-${{ matrix.otp }}-${{ matrix.elixir }}-${{ hashFiles('mix.lock') }}
+          restore-keys: |
+            ${{ matrix.os }}-lint-${{ matrix.otp }}-${{ matrix.elixir }}-
+      - run: mix deps.get
+      - run: mix compile --warnings-as-errors
+      - run: mix format --check-formatted
+      - run: mix test
+
+      - name: Dialyze
+        run: mix dialyzer

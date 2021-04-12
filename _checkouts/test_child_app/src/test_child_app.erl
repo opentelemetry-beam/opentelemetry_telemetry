@@ -1,7 +1,27 @@
 -module(test_child_app).
 
--telemetry_event [test_child_app, extra_long, handler, start].
--telemetry_event [test_child_app, extra_long, handler, stop].
+-telemetry_event #{
+                   event => [test_child_app, extra_long, start],
+                   description => <<"Emitted at the start of the handler">>,
+                   measurements => <<"#{system_time => non_neg_integer()}">>,
+                   metadata => <<"#{}">>
+                  }.
+-telemetry_event #{
+                   event => [test_child_app, extra_long, stop],
+                   description => <<"Emitted at the end of the handler">>,
+                   measurements => <<"#{duration => non_neg_integer()}">>,
+                   metadata => <<"#{}">>
+                  }.
 
--telemetry_event [test_child_app, cache, miss].
--telemetry_event [test_child_app, cache, hit].
+-telemetry_event #{
+                   event => [test_child_app, cache, hit],
+                   description => <<"Emitted at the start of the handler">>,
+                   measurements => <<"#{system_time => non_neg_integer()}">>,
+                   metadata => <<"#{}">>
+                  }.
+-telemetry_event #{
+                   event => [test_child_app, cache, miss],
+                   description => <<"Emitted at the end of the handler">>,
+                   measurements => <<"#{duration => non_neg_integer()}">>,
+                   metadata => <<"#{}">>
+                  }.

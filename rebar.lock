@@ -1,16 +1,14 @@
-{"1.1.0",
-[{<<"opentelemetry">>,{pkg,<<"opentelemetry">>,<<"0.4.0">>},0},
- {<<"opentelemetry_api">>,{pkg,<<"opentelemetry_api">>,<<"0.3.2">>},0},
- {<<"rebar">>,
-  {git,"git@github.com:beam-telemetry/telemetry_registry.git",
-       {ref,"589afd9f4cd1e0ea23ece15a5e5339306fe3466a"}},
-  0},
+{"1.2.0",
+[{<<"opentelemetry_api">>,{pkg,<<"opentelemetry_api">>,<<"1.0.0-rc.1">>},0},
  {<<"telemetry">>,{pkg,<<"telemetry">>,<<"0.4.2">>},0},
- {<<"telemetry_registry">>,{pkg,<<"telemetry_registry">>,<<"0.1.0">>},0}]}.
+ {<<"telemetry_registry">>,{pkg,<<"telemetry_registry">>,<<"0.2.1">>},0}]}.
 [
 {pkg_hash,[
- {<<"opentelemetry">>, <<"293729F014009B03A1A2C47E6367DB6F280B41412FAA5639F06DCCE9733D18A6">>},
- {<<"opentelemetry_api">>, <<"B474CD21AF5855A6DFFF0912F26C7C40FBF1FD05B045D8E29FD53EDEB4C3EC99">>},
+ {<<"opentelemetry_api">>, <<"8BE0D75A467D5B903214C59F2D01DFF81969E1EA5D7D75A790B605DAAA7B36B9">>},
  {<<"telemetry">>, <<"2808C992455E08D6177322F14D3BDB6B625FBCFD233A73505870D8738A2F4599">>},
- {<<"telemetry_registry">>, <<"59C0F5B8A9A4B4B0619D88D5A60A7AA652F63AFFBD17271160491BC19A24C312">>}]}
+ {<<"telemetry_registry">>, <<"FE648A691F2128E4279D993CD010994C67F282354DC061E697BF070D4B87B480">>}]},
+{pkg_hash_ext,[
+ {<<"opentelemetry_api">>, <<"22CFAD076849C138B8A4B5F0170F7C87178EA9CFF7A76F3137E8D93071A1D808">>},
+ {<<"telemetry">>, <<"2D1419BD9DDA6A206D7B5852179511722E2B18812310D304620C7BD92A13FCEF">>},
+ {<<"telemetry_registry">>, <<"4221CEFBCADD0B3E7076960339223742D973F1371BC20F3826AF640257BC3690">>}]}
 ].

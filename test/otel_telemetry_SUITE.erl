@@ -5,17 +5,17 @@
 -include_lib("common_test/include/ct.hrl").
 -include_lib("stdlib/include/assert.hrl").
 -include_lib("opentelemetry_api/include/opentelemetry.hrl").
--include_lib("opentelemetry/include/ot_span.hrl").
+-include_lib("opentelemetry/include/otel_span.hrl").
+-include_lib("opentelemetry_api/include/otel_tracer.hrl").
 
 all() -> [
-          successful_span,
-          exception_span
+          telemetry_span_handling
          ].
 
 init_per_suite(Config) ->
     ok = application:load(opentelemetry_telemetry),
     ok = application:load(opentelemetry),
-    application:set_env(opentelemetry, processors, [{ot_batch_processor, #{scheduled_delay_ms => 1}}]),
+    application:set_env(opentelemetry, processors, [{otel_batch_processor, #{scheduled_delay_ms => 1}}]),
     Config.
 
 end_per_suite(_Config) ->
@@ -27,49 +27,58 @@ init_per_testcase(_, Config) ->
     {ok, _} = application:ensure_all_started(telemetry_registry),
     {ok, _} = application:ensure_all_started(test_app),
     {ok, _} = application:ensure_all_started(opentelemetry_telemetry),
-    {ok, _} = application:ensure_all_started(opentelemetry),
-    ot_batch_processor:set_exporter(ot_exporter_pid, self()),
-    otel_telemetry:init(test_app),
+    otel_batch_processor:set_exporter(otel_exporter_pid, self()),
+    otel_telemetry:trace_application(test_app),
+    opentelemetry:register_tracer(test_tracer, "0.1.0"),
     Config.
 
 end_per_testcase(_, Config) ->
     application:stop(telemetry),
     application:stop(telemetry_registry),
-    application:stop(telemetry_app),
+    application:stop(test_app),
     application:stop(opentelemetry_telemetry),
     application:stop(opentelemetry),
     Config.
 
-successful_span(_Config) ->
+telemetry_span_handling(_Config) ->
+    SpanCtx1 = ?start_span(<<"span-1">>),
+    ?set_current_span(SpanCtx1),
     _Result = test_app:handler(ok),
-    receive
-        {span, #span{name=Name,attributes=Attributes}} ->
-            ?assertEqual(<<"test_app_handler">>, Name),
-            Attr = maps:from_list(Attributes),
-            ?assert(maps:is_key(<<"duration">>, Attr))
-        after
-            5000 ->
-                error(timeout)
-        end,
-    ok.
-
-exception_span(_Config) ->
     try test_app:handler(raise_exception) of
         _ -> ok
     catch
         error:badarg -> ok
     end,
+    ?assertMatch(SpanCtx1, ?current_span_ctx),
+    ?set_attribute(<<"duration">>, 1),
+    ?end_span(),
+    {_, Span3Parent} = successful_span_listener(<<"test_app_nested_span">>),
+    {Span2, Span2Parent} = successful_span_listener(<<"test_app_handler">>),
+    {_, ExceptionSpanParent} = exception_span_listener(<<"test_app_handler">>),
+    {Span1, undefined} = successful_span_listener(<<"span-1">>),
+    ?assertEqual(Span2Parent, Span1),
+    ?assertEqual(ExceptionSpanParent, Span1),
+    ?assertEqual(Span3Parent, Span2),
+    ok.
+
+successful_span_listener(Name) ->
     receive
-        {span, #span{name=Name,attributes=Attributes, status=Status}} ->
-            ?assertEqual(<<"test_app_handler">>, Name),
-            ?assertEqual({status,'InternalError',<<"badarg">>}, Status),
+        {span, #span{name=Name,attributes=Attributes,parent_span_id=ParentId,span_id=Id}} ->
             Attr = maps:from_list(Attributes),
-            ?assert(maps:is_key(<<"kind">>, Attr)),
-            ?assert(maps:is_key(<<"reason">>, Attr)),
-            ?assert(maps:is_key(<<"stacktrace">>, Attr)),
-            ?assert(maps:is_key(<<"duration">>, Attr))
+            ?assert(maps:is_key(<<"duration">>, Attr)),
+            {Id, ParentId}
     after
         5000 ->
             error(timeout)
-    end,
-    ok.
+    end.
+
+exception_span_listener(Name) ->
+    receive
+        {span, #span{name=Name,events=Events,status=Status,parent_span_id=ParentId,span_id=Id}} ->
+            ?assertEqual({status,error,<<"badarg">>}, Status),
+            ?assertEqual(1, erlang:length(Events)),
+            {Id, ParentId}
+    after
+        5000 ->
+            error(timeout)
+    end.

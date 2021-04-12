@@ -62,8 +62,7 @@ defmodule OpentelemetryTelemetry.MixProject do
     [
       description: "Bridge library between Telemetry events and OpenTelemetry Erlang",
       build_tools: ["rebar3", "mix"],
-      files:
-        ~w(lib mix.exs README.md LICENSE CODEOWNERS rebar.config rebar.lock VERSION include src),
+      files: ~w(lib mix.exs README.md LICENSE CODEOWNERS rebar.config rebar.lock VERSION src),
       licenses: ["Apache-2.0"],
       links: %{
         "GitHub" => "https://github.com/opentelemetry-beam/opentelemetry-telemetry",

@@ -15,8 +15,8 @@ defmodule OpentelemetryTelemetry.MixProject do
       name: "Opentelemetry Telemetry",
       source_url: "https://github.com/opentelemetry-beam/opentelemetry_telemetry",
       docs: [
-        markdown_processor: ExDoc.Markdown.Cmark,
-        main: "OpenTelemetry",
+        markdown_processor: ExDoc.Markdown.Earmark,
+        main: "OpentelemetryTelemetry",
         # logo: "path/to/logo.png",
         extras: erlang_docs()
       ],
@@ -52,9 +52,8 @@ defmodule OpentelemetryTelemetry.MixProject do
       dep when is_atom(dep) -> {dep, ">= 0.0.0"}
     end)
     |> Enum.concat([
-      {:cmark, "~> 0.7", only: :dev, runtime: false},
-      {:ex_doc, "~> 0.21", only: :dev, runtime: false},
-
+      {:dialyxir, "~> 1.1", only: [:dev, :test], runtime: false},
+      {:ex_doc, "~> 0.21", only: :dev, runtime: false}
     ])
   end
 
@@ -62,19 +61,21 @@ defmodule OpentelemetryTelemetry.MixProject do
     [
       description: "Bridge library between Telemetry events and OpenTelemetry Erlang",
       build_tools: ["rebar3", "mix"],
-      files: ~w(lib mix.exs README.md LICENSE CODEOWNERS rebar.config rebar.lock VERSION include src),
+      files:
+        ~w(lib mix.exs README.md LICENSE CODEOWNERS rebar.config rebar.lock VERSION include src),
       licenses: ["Apache-2.0"],
-      links: %{"GitHub" => "https://github.com/opentelemetry-beam/opentelemetry-telemetry",
-               "OpenTelemetry.io" => "https://opentelemetry.io"}
+      links: %{
+        "GitHub" => "https://github.com/opentelemetry-beam/opentelemetry-telemetry",
+        "OpenTelemetry.io" => "https://opentelemetry.io"
+      }
     ]
   end
 
-
   def erlang_docs() do
     files =
-    for file <- Path.wildcard("edoc/*.md"),
-      file != "edoc/README.md",
-      do: {String.to_atom(file), [title: Path.basename(file, ".md")]}
+      for file <- Path.wildcard("edoc/*.md"),
+          file != "edoc/README.md",
+          do: {String.to_atom(file), [title: Path.basename(file, ".md")]}
 
     [{:"README.md", [title: "Overview"]} | files]
   end

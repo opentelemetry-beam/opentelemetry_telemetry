@@ -27,7 +27,6 @@ init_per_testcase(_, Config) ->
     {ok, _} = application:ensure_all_started(telemetry_registry),
     {ok, _} = application:ensure_all_started(test_app),
     {ok, _} = application:ensure_all_started(opentelemetry_telemetry),
-    {ok, _} = application:ensure_all_started(opentelemetry),
     otel_batch_processor:set_exporter(otel_exporter_pid, self()),
     otel_telemetry:trace_application(test_app),
     opentelemetry:register_tracer(test_tracer, "0.1.0"),

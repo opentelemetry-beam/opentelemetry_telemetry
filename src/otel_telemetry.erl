@@ -12,9 +12,11 @@
          trace_application/1,
          trace_application/2]).
 
+-spec init(atom()) -> ok.
 init(Application) ->
     init(Application, []).
 
+-spec init(atom(), []) -> ok.
 init(_Application, _Opts) ->
     ok.
 
@@ -29,10 +31,12 @@ trace_application(Application, _Opts) ->
     _ = register_event_handlers(SpannableEvents, AllEvents),
     ok.
 
+-spec store_current_ctx(atom(), telemetry:event_metadata()) -> ok.
 store_current_ctx(TracerId, EventMetadata) ->
     CurrentCtx = otel_tracer:current_span_ctx(),
     store_ctx(CurrentCtx, TracerId, EventMetadata).
 
+-spec store_ctx(opentelemetry:span_ctx(), atom(), telemetry:event_metadata()) -> ok.
 store_ctx(SpanCtx, TracerId, EventMetadata) ->
     case maps:get(telemetry_span_context, EventMetadata, undefined) of
         undefined ->
@@ -42,6 +46,7 @@ store_ctx(SpanCtx, TracerId, EventMetadata) ->
     end,
     ok.
 
+-spec pop_ctx(atom(), telemetry:event_metadata()) -> opentelemetry:span_ctx().
 pop_ctx(TracerId, EventMetadata) ->
     case maps:get(telemetry_span_context, EventMetadata, undefined) of
         undefined ->
@@ -68,7 +73,7 @@ pop_from_tracer_stack(TracerId) ->
     end.
 
 register_event_handlers(SpannableEvents, AllEvents) ->
-    maps:fold(fun (Prefix, Suffixes, Handlers) ->
+    lists:foldl(fun ({Prefix, Suffixes}, Handlers) ->
                       TracerId = tracer_id_for_events(Prefix, Suffixes, AllEvents),
                       NewHandlers = [attach_handler(Prefix, Suffix, TracerId)
                                      || Suffix <- Suffixes],
@@ -78,7 +83,7 @@ register_event_handlers(SpannableEvents, AllEvents) ->
               SpannableEvents).
 
 register_tracers(AllEvents) ->
-    lists:foldl(fun ({_Event, Module}, RegisteredModules) ->
+    lists:foldl(fun ({_Event, Module, _Metadata}, RegisteredModules) ->
                         case lists:member(Module, RegisteredModules) of
                           true ->
                               RegisteredModules;
@@ -100,16 +105,16 @@ attach_handler(Prefix, Suffix, TracerId) ->
 
 tracer_id_for_events(Prefix, [Suffix | _], AllEvents) ->
     Event = Prefix ++ [Suffix],
-    {Event, Module} = lists:keyfind(Event, 1, AllEvents),
+    {Event, Module, _Metadata} = lists:keyfind(Event, 1, AllEvents),
     Module.
 
 handle_event(_Event,
              #{system_time := StartTime},
              Metadata,
              #{type := start, tracer_id := TracerId, span_name := Name}) ->
-    StartOpts = #{start_time => StartTime},
     Tracer = opentelemetry:get_tracer(TracerId),
     _ = store_current_ctx(TracerId, Metadata),
+    StartOpts = #{start_time => StartTime},
     Ctx = otel_tracer:start_span(Tracer, Name, StartOpts),
     otel_tracer:set_current_span(Ctx),
     ok;

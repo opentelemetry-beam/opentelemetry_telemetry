@@ -8,48 +8,48 @@ defmodule OpentelemetryTelemetry do
   `opentelemetry` does not automatically set current span context when ending
   another span. Since `telemetry` events are executed in separate handlers with
   no shared context, correlating individual events requires a mechanism to do so.
-  The provided `store_ctx/2`, `store_current_ctx/3`, and `pop_ctx/2` functions
+  The provided `store_ctx/3`, `store_current_ctx/2`, and `pop_ctx/2` functions
   give bridge library authors a mechanism for getting around this challenge.
 
   ### Example Telemetry Event Handlers
 
-  ```erlang
-  def handle_event(_event,
-             %{system_time: start_time},
-             metadata,
-             %{type: :start, tracer_id: tracer_id, span_name: name}) do
-    tracer = :opentelemetry.get_tracer(tracer_id)
-    OpentelemetryTelemetry.store_current_ctx(tracer_id, metadata)
-    start_opts = %{start_time: start_time}
-    ctx = :otel_tracer.start_span(tracer, name, start_opts)
-    :otel_tracer.set_current_span(ctx)
-    ok
-  end
-
-  def handle_event(_event,
-              %{duration: duration},
+  ```
+    def handle_event(_event,
+              %{system_time: start_time},
               metadata,
-              %{type: :stop, tracer_id: tracer_id}) do
-      :otel_tracer.set_attribute(:duration, duration)
-      :otel_tracer.end_span()
-      ctx = OpentelemetryTelemetry.pop_ctx(tracer_id, metadata)
+              %{type: :start, tracer_id: tracer_id, span_name: name}) do
+      tracer = :opentelemetry.get_tracer(tracer_id)
+      OpentelemetryTelemetry.store_current_ctx(tracer_id, metadata)
+      start_opts = %{start_time: start_time}
+      ctx = :otel_tracer.start_span(tracer, name, start_opts)
       :otel_tracer.set_current_span(ctx)
-      :ok
-  end
-
-  def handle_event(_event,
-              %{duration: duration},
-              %{kind: kind, reason: reason, stacktrace: stacktrace} = metadata,
-              %{type: :exception, tracer_id: tracer_id}) do
-      status = :opentelemetry.status(:error, to_string(reason, :utf8))
-      :otel_span.record_exception(:otel_tracer.current_span_ctx(), kind, reason, stacktrace, [{:duration, duration}])
-      :otel_tracer.set_status(status)
-      :otel_tracer.end_span()
-      ctx = OpentelemetryTelemetry.pop_ctx(tracer_id, metadata)
-      :otel_tracer.set_current_span(ctx)
-      :ok
+      ok
     end
-  def handle_event(_event, _measurements, _metadata, _config), do: :ok
+
+    def handle_event(_event,
+                %{duration: duration},
+                metadata,
+                %{type: :stop, tracer_id: tracer_id}) do
+        :otel_tracer.set_attribute(:duration, duration)
+        :otel_tracer.end_span()
+        ctx = OpentelemetryTelemetry.pop_ctx(tracer_id, metadata)
+        :otel_tracer.set_current_span(ctx)
+        :ok
+    end
+
+    def handle_event(_event,
+                %{duration: duration},
+                %{kind: kind, reason: reason, stacktrace: stacktrace} = metadata,
+                %{type: :exception, tracer_id: tracer_id}) do
+        status = :opentelemetry.status(:error, to_string(reason, :utf8))
+        :otel_span.record_exception(:otel_tracer.current_span_ctx(), kind, reason, stacktrace, [{:duration, duration}])
+        :otel_tracer.set_status(status)
+        :otel_tracer.end_span()
+        ctx = OpentelemetryTelemetry.pop_ctx(tracer_id, metadata)
+        :otel_tracer.set_current_span(ctx)
+        :ok
+      end
+    def handle_event(_event, _measurements, _metadata, _config), do: :ok
 
   ```
 
@@ -86,5 +86,7 @@ defmodule OpentelemetryTelemetry do
 
   @doc false
   defdelegate trace_application(app), to: :otel_telemetry
+
+  @doc false
   defdelegate trace_application(app, opts), to: :otel_telemetry
 end

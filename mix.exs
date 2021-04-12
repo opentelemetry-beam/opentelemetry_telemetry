@@ -18,7 +18,7 @@ defmodule OpentelemetryTelemetry.MixProject do
         markdown_processor: ExDoc.Markdown.Earmark,
         main: "OpentelemetryTelemetry",
         # logo: "path/to/logo.png",
-        extras: erlang_docs()
+        extras: [] #erlang_docs()
       ],
       aliases: [
         # when build docs first build edocs with rebar3

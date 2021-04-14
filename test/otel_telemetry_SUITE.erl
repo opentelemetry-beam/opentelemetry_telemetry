@@ -44,6 +44,7 @@ telemetry_span_handling(_Config) ->
     SpanCtx1 = ?start_span(<<"span-1">>),
     ?set_current_span(SpanCtx1),
     _Result = test_app:handler(ok),
+    ?assertMatch(SpanCtx1, ?current_span_ctx),
     try test_app:handler(raise_exception) of
         _ -> ok
     catch

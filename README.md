@@ -12,7 +12,7 @@ by adding `opentelemetry_telemetry` to your list of dependencies in `mix.exs`:
 ```elixir
 def deps do
   [
-    {:opentelemetry_telemetry, "~> 0.1.0"}
+    {:opentelemetry_telemetry, "~> 1.0.0-beta.2"}
   ]
 end
 ```

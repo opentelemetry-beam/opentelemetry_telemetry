@@ -86,7 +86,7 @@ defmodule OpentelemetryTelemetry do
   @type ctx_set() :: {parent_span_ctx(), telemetry_span_ctx()}
 
   @typedoc """
-  The name given to `OpenTelemetry.register_application_tracer/2`. For bridge libraries,
+  The name given to `OpenTelemetry.register_application_tracer/1`. For bridge libraries,
   this is usually the name of the bridge library, e.g. `:opentelemetry_phoenix`
   """
   @type tracer_id() :: atom()

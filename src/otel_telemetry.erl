@@ -6,11 +6,16 @@
          init/1,
          init/2,
          handle_event/4,
-         pop_ctx/2,
-         store_ctx/3,
-         store_current_ctx/2,
+         start_telemetry_span/4,
+         set_current_telemetry_span/2,
+         end_telemetry_span/2,
          trace_application/1,
          trace_application/2]).
+
+-type telemetry_span_ctx() :: opentelemetry:span_ctx().
+-type parent_span_ctx() :: opentelemetry:span_ctx().
+
+-type ctx_set() :: {parent_span_ctx(), telemetry_span_ctx()}.
 
 -spec init(atom()) -> ok.
 init(Application) ->
@@ -31,22 +36,64 @@ trace_application(Application, _Opts) ->
     _ = register_event_handlers(SpannableEvents, AllEvents),
     ok.
 
--spec store_current_ctx(atom(), telemetry:event_metadata()) -> ok.
-store_current_ctx(TracerId, EventMetadata) ->
-    CurrentCtx = otel_tracer:current_span_ctx(),
-    store_ctx(CurrentCtx, TracerId, EventMetadata).
+-spec start_telemetry_span(atom(), opentelemetry:span_name(), telemetry:event_metadata(), otel_span:start_opts()) -> opentelemetry:span_ctx().
+start_telemetry_span(TracerId, SpanName, EventMetadata, Opts) ->
+    ParentCtx = otel_tracer:current_span_ctx(),
+    Tracer = opentelemetry:get_tracer(TracerId),
+    Ctx = otel_tracer:start_span(Tracer, SpanName, Opts),
+    otel_tracer:set_current_span(Ctx),
+    _ = store_ctx({ParentCtx, Ctx}, TracerId, EventMetadata),
+    Ctx.
 
--spec store_ctx(opentelemetry:span_ctx(), atom(), telemetry:event_metadata()) -> ok.
-store_ctx(SpanCtx, TracerId, EventMetadata) ->
+-spec set_current_telemetry_span(atom(), telemetry:event_metadata()) -> opentelemetry:span_ctx().
+set_current_telemetry_span(TracerId, EventMetadata) ->
+    {_ParentCtx, Ctx} = fetch_telemetry_span_ctx(TracerId, EventMetadata),
+    otel_tracer:set_current_span(Ctx),
+    Ctx.
+
+-spec end_telemetry_span(atom(), telemetry:event_metadata()) -> ok.
+end_telemetry_span(TracerId, EventMetadata) ->
+    {ParentCtx, _Ctx} = pop_ctx(TracerId, EventMetadata),
+    otel_tracer:end_span(),
+    otel_tracer:set_current_span(ParentCtx),
+    ok.
+
+-spec store_ctx(ctx_set(), atom(), telemetry:event_metadata()) -> ok.
+store_ctx(SpanCtxSet, TracerId, EventMetadata) ->
     case maps:get(telemetry_span_context, EventMetadata, undefined) of
         undefined ->
-            push_to_tracer_stack(SpanCtx, TracerId);
+            push_to_tracer_stack(SpanCtxSet, TracerId);
         TelemetryCtx ->
-            erlang:put({otel_telemetry, TelemetryCtx}, SpanCtx)
+            erlang:put({otel_telemetry, TelemetryCtx}, SpanCtxSet)
     end,
     ok.
 
--spec pop_ctx(atom(), telemetry:event_metadata()) -> opentelemetry:span_ctx().
+push_to_tracer_stack(SpanCtxSet, TracerId) ->
+    case erlang:get({otel_telemetry, TracerId}) of
+        undefined ->
+            erlang:put({otel_telemetry, TracerId}, [SpanCtxSet]);
+        Stack ->
+            erlang:put({otel_telemetry, TracerId}, [SpanCtxSet | Stack])
+    end.
+
+-spec fetch_telemetry_span_ctx(atom(), telemetry:event_metadata()) -> ctx_set().
+fetch_telemetry_span_ctx(TracerId, EventMetadata) ->
+    case maps:get(telemetry_span_context, EventMetadata, undefined) of
+        undefined ->
+            peek_from_tracer_stack(TracerId);
+        TelemetryCtx ->
+            erlang:get({otel_telemetry, TelemetryCtx})
+    end.
+
+peek_from_tracer_stack(TracerId) ->
+    case erlang:get({otel_telemetry, TracerId}) of
+        undefined ->
+            undefined;
+        [SpanCtxSet | _Rest] ->
+            SpanCtxSet
+    end.
+
+-spec pop_ctx(atom(), telemetry:event_metadata()) -> ctx_set().
 pop_ctx(TracerId, EventMetadata) ->
     case maps:get(telemetry_span_context, EventMetadata, undefined) of
         undefined ->
@@ -55,21 +102,13 @@ pop_ctx(TracerId, EventMetadata) ->
             erlang:erase({otel_telemetry, TelemetryCtx})
     end.
 
-push_to_tracer_stack(SpanCtx, TracerId) ->
-    case erlang:get({otel_telemetry, TracerId}) of
-        undefined ->
-            erlang:put({otel_telemetry, TracerId}, [SpanCtx]);
-        Stack ->
-            erlang:put({otel_telemetry, TracerId}, [SpanCtx | Stack])
-    end.
-
 pop_from_tracer_stack(TracerId) ->
     case erlang:get({otel_telemetry, TracerId}) of
         undefined ->
             undefined;
-        [SpanCtx | Rest] ->
+        [SpanCtxSet | Rest] ->
             erlang:put({otel_telemetry, TracerId}, Rest),
-            SpanCtx
+            SpanCtxSet
     end.
 
 register_event_handlers(SpannableEvents, AllEvents) ->
@@ -112,31 +151,26 @@ handle_event(_Event,
              #{system_time := StartTime},
              Metadata,
              #{type := start, tracer_id := TracerId, span_name := Name}) ->
-    Tracer = opentelemetry:get_tracer(TracerId),
-    _ = store_current_ctx(TracerId, Metadata),
     StartOpts = #{start_time => StartTime},
-    Ctx = otel_tracer:start_span(Tracer, Name, StartOpts),
-    otel_tracer:set_current_span(Ctx),
+    _Ctx = start_telemetry_span(TracerId, Name, Metadata, StartOpts),
     ok;
 handle_event(_Event,
              #{duration := Duration},
              Metadata,
              #{type := stop, tracer_id := TracerId}) ->
+    set_current_telemetry_span(TracerId, Metadata),
     otel_tracer:set_attribute(<<"duration">>, Duration),
-    _ = otel_tracer:end_span(),
-    Ctx = pop_ctx(TracerId, Metadata),
-    otel_tracer:set_current_span(Ctx),
+    end_telemetry_span(TracerId, Metadata),
     ok;
 handle_event(_Event,
              #{duration := Duration},
              #{kind := Kind, reason := Reason, stacktrace := Stacktrace} = Metadata,
              #{type := exception, tracer_id := TracerId}) ->
+    Ctx = set_current_telemetry_span(TracerId, Metadata),
     Status = opentelemetry:status(?OTEL_STATUS_ERROR, atom_to_binary(Reason, utf8)),
-    _ = otel_span:record_exception(otel_tracer:current_span_ctx(), Kind, Reason, Stacktrace, [{<<"duration">>, Duration}]),
-    otel_tracer:set_status(Status),
-    _ = otel_tracer:end_span(),
-    Ctx = pop_ctx(TracerId, Metadata),
-    otel_tracer:set_current_span(Ctx),
+    otel_span:record_exception(Ctx, Kind, Reason, Stacktrace, [{<<"duration">>, Duration}]),
+    otel_span:set_status(Ctx, Status),
+    end_telemetry_span(TracerId, Metadata),
     ok;
 handle_event(_Event, _Measurements, _Metadata, _Config) ->
     ok.

@@ -72,26 +72,49 @@ defmodule OpentelemetryTelemetry do
   span.
   """
 
+  @typedoc """
+  A span ctx for a telemetry-based span.
+  """
   @type telemetry_span_ctx() :: :opentelemetry.span_ctx()
+
+  @typedoc """
+  The parent span ctx for a telemetry-based span. This is what the current span ctx was
+  at the time of starting a telemetry-based span.
+  """
   @type parent_span_ctx() :: :opentelemetry.span_ctx()
 
   @type ctx_set() :: {parent_span_ctx(), telemetry_span_ctx()}
 
-  @doc """
-  Stores the passed `t:OpenTelemetry.span_ctx/0` for a given `tracer_id`.
+  @typedoc """
+  The name given to `OpenTelemetry.register_application_tracer/2`. For bridge libraries,
+  this is usually the name of the bridge library, e.g. `:opentelemetry_phoenix`
   """
+  @type tracer_id() :: atom()
+
+  @doc """
+  Start a telemetry-based span.
+  """
+  @spec start_telemetry_span(
+          tracer_id(),
+          :opentelemetry.span_name(),
+          :telemetry.event_metadata(),
+          OpenTelemetry.Tracer.start_opts()
+        ) :: OpenTelemetry.span_ctx()
   defdelegate start_telemetry_span(tracer_id, span_name, event_metadata, start_opts),
     to: :otel_telemetry
 
   @doc """
-  Convenience function `store_context/3` to use the current span context.
+  Set the current span ctx based on the tracer_id and telemetry event metadata.
   """
+  @spec set_current_telemetry_span(tracer_id(), :telemetry.event_metadata()) ::
+          OpenTelemetry.span_ctx()
   defdelegate set_current_telemetry_span(tracer_id, event_metadata), to: :otel_telemetry
 
   @doc """
-  Pops and returns a `t:OpenTelemetry.span_ctx/0` for a given `tracer_id`
-  from the span context store.
+  End a telemetry-based span based on the `tracer_id` and telemetry event metadata
+  and restore the current ctx to the span's parent ctx.
   """
+  @spec end_telemetry_span(tracer_id(), :telemetry.event_metadata()) :: :ok
   defdelegate end_telemetry_span(tracer_id, event_metadata), to: :otel_telemetry
 
   @doc false

@@ -65,7 +65,7 @@ defmodule OpentelemetryTelemetry.MixProject do
       files: ~w(lib mix.exs README.md LICENSE CODEOWNERS rebar.config rebar.lock VERSION src),
       licenses: ["Apache-2.0"],
       links: %{
-        "GitHub" => "https://github.com/opentelemetry-beam/opentelemetry-telemetry",
+        "GitHub" => "https://github.com/opentelemetry-beam/opentelemetry_telemetry",
         "OpenTelemetry.io" => "https://opentelemetry.io"
       }
     ]

@@ -1,5 +1,11 @@
 # Changelog
 
+## 1.0.0-beta.3
+
+### Changes
+
+* telemetry v1.0.0 required
+
 ## 1.0.0-beta.2
 
 ### Breaking Changes

@@ -44,11 +44,15 @@ start_telemetry_span(TracerId, SpanName, EventMetadata, Opts) ->
     _ = store_ctx({ParentCtx, Ctx}, TracerId, EventMetadata),
     Ctx.
 
--spec set_current_telemetry_span(atom(), telemetry:event_metadata()) -> opentelemetry:span_ctx().
+-spec set_current_telemetry_span(atom(), telemetry:event_metadata()) -> opentelemetry:span_ctx() | undefined.
 set_current_telemetry_span(TracerId, EventMetadata) ->
-    {_ParentCtx, Ctx} = fetch_telemetry_span_ctx(TracerId, EventMetadata),
-    otel_tracer:set_current_span(Ctx),
-    Ctx.
+    case fetch_telemetry_span_ctx(TracerId, EventMetadata) of
+        {_ParentCtx, Ctx} ->
+            otel_tracer:set_current_span(Ctx),
+            Ctx;
+        undefined ->
+            undefined
+    end.
 
 -spec end_telemetry_span(atom(), telemetry:event_metadata()) -> ok.
 end_telemetry_span(TracerId, EventMetadata) ->
@@ -67,6 +71,7 @@ store_ctx(SpanCtxSet, TracerId, EventMetadata) ->
     end,
     ok.
 
+-spec push_to_tracer_stack(ctx_set(), atom()) -> ok.
 push_to_tracer_stack(SpanCtxSet, TracerId) ->
     case erlang:get({otel_telemetry, TracerId}) of
         undefined ->
@@ -75,7 +80,7 @@ push_to_tracer_stack(SpanCtxSet, TracerId) ->
             erlang:put({otel_telemetry, TracerId}, [SpanCtxSet | Stack])
     end.
 
--spec fetch_telemetry_span_ctx(atom(), telemetry:event_metadata()) -> ctx_set().
+-spec fetch_telemetry_span_ctx(atom(), telemetry:event_metadata()) -> ctx_set() | undefined.
 fetch_telemetry_span_ctx(TracerId, EventMetadata) ->
     case maps:get(telemetry_span_context, EventMetadata, undefined) of
         undefined ->
@@ -84,6 +89,7 @@ fetch_telemetry_span_ctx(TracerId, EventMetadata) ->
             erlang:get({otel_telemetry, TelemetryCtx})
     end.
 
+-spec peek_from_tracer_stack(atom()) -> ctx_set() | undefined.
 peek_from_tracer_stack(TracerId) ->
     case erlang:get({otel_telemetry, TracerId}) of
         undefined ->

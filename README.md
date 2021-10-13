@@ -9,10 +9,16 @@ A bridge library between telemetry events and OpenTelemetry Erlang.
 If [available in Hex](https://hex.pm/docs/publish), the package can be installed
 by adding `opentelemetry_telemetry` to your list of dependencies in `mix.exs`:
 
+```erlang
+{deps, [
+  {opentelemetry_telemetry, "~> 1.0.0-beta.4"}
+]}.
+```
+
 ```elixir
 def deps do
   [
-    {:opentelemetry_telemetry, "~> 1.0.0-beta.2"}
+    {:opentelemetry_telemetry, "~> 1.0.0-beta.4"}
   ]
 end
 ```

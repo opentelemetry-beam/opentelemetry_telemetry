@@ -1,5 +1,11 @@
 # Changelog
 
+## 1.0.0-beta.4
+
+### Changes
+
+* OpenTelemetry 1.0.0-rc.3 support
+
 ## 1.0.0-beta.3
 
 ### Changes

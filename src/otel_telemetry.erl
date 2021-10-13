@@ -32,7 +32,6 @@ trace_application(Application, _Opts) ->
     _ = telemetry_registry:discover_all([Application]),
     AllEvents = telemetry_registry:list_events(),
     SpannableEvents = telemetry_registry:spannable_events(),
-    _ = register_tracers(AllEvents),
     _ = register_event_handlers(SpannableEvents, AllEvents),
     ok.
 
@@ -121,19 +120,6 @@ register_event_handlers(SpannableEvents, AllEvents) ->
               [],
               SpannableEvents).
 
-register_tracers(AllEvents) ->
-    lists:foldl(fun ({_Event, Module, _Metadata}, RegisteredModules) ->
-                        case lists:member(Module, RegisteredModules) of
-                          true ->
-                              RegisteredModules;
-                          false ->
-                              _Result = opentelemetry:register_application_tracer(Module),
-                              [Module | RegisteredModules]
-                        end
-                end,
-                [],
-                AllEvents).
-
 attach_handler(Prefix, Suffix, TracerId) ->
     Event = Prefix ++ [Suffix],
     SpanName = list_to_binary(lists:join("_",
@@ -158,8 +144,8 @@ handle_event(_Event,
              #{duration := Duration},
              Metadata,
              #{type := stop, tracer_id := TracerId}) ->
-    set_current_telemetry_span(TracerId, Metadata),
-    otel_tracer:set_attribute(<<"duration">>, Duration),
+    Ctx = set_current_telemetry_span(TracerId, Metadata),
+    otel_span:set_attribute(Ctx, <<"duration">>, Duration),
     end_telemetry_span(TracerId, Metadata),
     ok;
 handle_event(_Event,

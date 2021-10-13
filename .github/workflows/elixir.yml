@@ -1,4 +1,4 @@
-name: Tests
+name: Elixir
 
 on:
   pull_request:
@@ -21,7 +21,7 @@ jobs:
         run: |
           matrixStringifiedObject="{\"otp_version\":[\"24.0.6\",\"23.3.4.7\",\"22.3.4.21\"],\"elixir_version\":[\"1.12.3\",\"1.11.4\"],\"rebar3_version\":[\"3.16.1\"],\"os\":[\"ubuntu-18.04\"],\"include\":[{\"otp_version\":\"21.3.8.24\",\"elixir_version\":\"1.10.4\",\"rebar3_version\":\"3.15.2\"},{\"otp_version\":\"21.3.8.24\",\"elixir_version\":\"1.11.4\",\"rebar3_version\":\"3.15.2\"}],\"exclude\":[{\"otp_version\":\"21.3.8.24\",\"elixir_version\":\"1.12.3\"}]}"
           echo "::set-output name=matrix::$matrixStringifiedObject"
-  opentelemetry-phoenix:
+  tests:
     needs: [test-matrix]
     runs-on: ubuntu-18.04
     name: Test on Elixir ${{ matrix.elixir_version }} (OTP ${{ matrix.otp_version }})
@@ -35,25 +35,13 @@ jobs:
           otp-version: ${{ matrix.otp_version }}
           elixir-version: ${{ matrix.elixir_version }}
           rebar3-version: ${{ matrix.rebar3_version }}
-      - name: Cache
-        uses: actions/cache@v2
-        with:
-          path: |
-            deps
-            _build
-          key: ${{ matrix.os }}-lint-${{ matrix.otp }}-${{ matrix.elixir }}-${{ hashFiles('mix.lock') }}
-          restore-keys: |
-            ${{ matrix.os }}-lint-${{ matrix.otp }}-${{ matrix.elixir }}-
       - name: Fetch deps
-        if: steps.deps-cache.outputs.cache-hit != 'true'
         run: mix deps.get
       - name: Compile project
         run: mix compile --warnings-as-errors
       - name: Check formatting
         run: mix format --check-formatted
-      - name: Erlang tests
-        run: rebar3 ct
-      - name: Elixir tests
+      - name: Test
         run: mix test
       - name: Dialyze
         run: mix dialyzer

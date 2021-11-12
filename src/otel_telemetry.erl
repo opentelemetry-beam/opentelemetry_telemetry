@@ -143,7 +143,7 @@ handle_event(_Event,
              #{system_time := StartTime},
              Metadata,
              #{type := start, tracer_id := TracerId, span_name := Name}) ->
-    StartOpts = #{start_time => StartTime},
+    StartOpts = #{start_time => StartTime - erlang:time_offset()},
     _Ctx = start_telemetry_span(TracerId, Name, Metadata, StartOpts),
     ok;
 handle_event(_Event,

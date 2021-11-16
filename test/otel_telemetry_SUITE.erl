@@ -51,7 +51,6 @@ telemetry_span_handling(_Config) ->
         error:badarg -> ok
     end,
     ?assertMatch(SpanCtx1, ?current_span_ctx),
-    ?set_attribute(<<"duration">>, 1),
     ?end_span(),
     {_, Span3Parent} = successful_span_listener(<<"test_app_nested_span">>),
     {Span2, Span2Parent} = successful_span_listener(<<"test_app_handler">>),
@@ -65,8 +64,6 @@ telemetry_span_handling(_Config) ->
 successful_span_listener(Name) ->
     receive
         {span, #span{name=Name,attributes=Attributes,parent_span_id=ParentId,span_id=Id}} ->
-            Attr = maps:from_list(Attributes),
-            ?assert(maps:is_key(<<"duration">>, Attr)),
             {Id, ParentId}
     after
         5000 ->

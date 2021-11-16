@@ -51,6 +51,7 @@ telemetry_span_handling(_Config) ->
         error:badarg -> ok
     end,
     ?assertMatch(SpanCtx1, ?current_span_ctx),
+    ?set_attribute(<<"attribute">>, 1),
     ?end_span(),
     {_, Span3Parent} = successful_span_listener(<<"test_app_nested_span">>),
     {Span2, Span2Parent} = successful_span_listener(<<"test_app_handler">>),

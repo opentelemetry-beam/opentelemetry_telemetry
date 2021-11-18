@@ -140,27 +140,25 @@ tracer_id_for_events(Prefix, [Suffix | _], AllEvents) ->
     Module.
 
 handle_event(_Event,
-             #{system_time := StartTime},
+             _Measurements,
              Metadata,
              #{type := start, tracer_id := TracerId, span_name := Name}) ->
-    StartOpts = #{start_time => StartTime},
-    _Ctx = start_telemetry_span(TracerId, Name, Metadata, StartOpts),
+    _Ctx = start_telemetry_span(TracerId, Name, Metadata, #{}),
     ok;
 handle_event(_Event,
-             #{duration := Duration},
+             _Measurements,
              Metadata,
              #{type := stop, tracer_id := TracerId}) ->
     Ctx = set_current_telemetry_span(TracerId, Metadata),
-    otel_span:set_attribute(Ctx, <<"duration">>, Duration),
     end_telemetry_span(TracerId, Metadata),
     ok;
 handle_event(_Event,
-             #{duration := Duration},
+             _Measurements,
              #{kind := Kind, reason := Reason, stacktrace := Stacktrace} = Metadata,
              #{type := exception, tracer_id := TracerId}) ->
     Ctx = set_current_telemetry_span(TracerId, Metadata),
     Status = opentelemetry:status(?OTEL_STATUS_ERROR, atom_to_binary(Reason, utf8)),
-    otel_span:record_exception(Ctx, Kind, Reason, Stacktrace, [{<<"duration">>, Duration}]),
+    otel_span:record_exception(Ctx, Kind, Reason, Stacktrace, []),
     otel_span:set_status(Ctx, Status),
     end_telemetry_span(TracerId, Metadata),
     ok;

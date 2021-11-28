@@ -1,5 +1,7 @@
 # OpentelemetryTelemetry
 
+## This project has moved to [OpenTelemetry Erlang Contrib](https://github.com/open-telemetry/opentelemetry-erlang-contrib/tree/main/utilities/opentelemetry_telemetry)
+
 A bridge library between telemetry events and OpenTelemetry Erlang. 
 
 **TODO: Add description**
